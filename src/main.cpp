@@ -9,6 +9,7 @@
 #include <gmpxx.h>
 
 #include "gmp_helpers.h"
+#include "arith.h"
 
 using std::cout;
 using std::endl;
@@ -374,9 +375,97 @@ public:
         return sgn(eval);
     }
 
-
     perf_noinline
     void reduce_lattice() {
+        typedef bbn<3> coord_t;
+
+        mat<coord_t> bb_basis;
+
+        bb_basis[0][0].set(basis[0][0]);
+        bb_basis[0][1].set(basis[0][1]);
+        bb_basis[1][0].set(basis[1][0]);
+        bb_basis[1][1].set(basis[1][1]);
+
+        bool done = false;
+        for (unsigned counter = 0; !done; ++counter) {
+            if (counter > 30) {
+                fallback_reduce_lattice();
+                return;
+            }
+
+            mat<double> db;
+            mat<limb_t> trans = {
+                {{1, 0}, {0, 1}}
+            };
+
+            coord_t::get_d_scaled4(
+                db[0][0],
+                db[0][1],
+                db[1][0],
+                db[1][1],
+                bb_basis[0][0],
+                bb_basis[0][1],
+                bb_basis[1][0],
+                bb_basis[1][1]
+            );
+
+            vec<double> lengths;
+
+            lengths[0] = db[0][0] * db[0][0] + db[0][1] * db[0][1];
+            lengths[1] = db[1][0] * db[1][0] + db[1][1] * db[1][1];
+
+            double trans_size = 1.0;
+
+            for (unsigned subcounter = 0; subcounter < 100; ++subcounter) {
+                double inner = db[0][0] * db[1][0] + db[0][1] * db[1][1];
+
+                int i = lengths[1] < lengths[0];
+                double fa = inner / lengths[i];
+                double ia = std::floor(fa + 0.5);
+                trans_size *= std::abs(ia);
+
+                limb_t a = ia;
+                if (a != ia) {
+                    fallback_reduce_lattice();
+                    return;
+                }
+
+                if (subcounter > 0 && trans_size > double(1l << 29)) {
+                    break;
+                }
+
+                if (a == 0) {
+                    done = true;
+                    break;
+                }
+
+                db[i ^ 1][0] -= db[i ^ 0][0] * ia;
+                db[i ^ 1][1] -= db[i ^ 0][1] * ia;
+
+                lengths[i ^ 1] =
+                    db[i ^ 1][0] * db[i ^ 1][0] + db[i ^ 1][1] * db[i ^ 1][1];
+
+
+                trans[i ^ 1][0] -= trans[i ^ 0][0] * a;
+                trans[i ^ 1][1] -= trans[i ^ 0][1] * a;
+            }
+
+            coord_t::apply_mat4(
+                bb_basis[0][0], bb_basis[0][1],
+                bb_basis[1][0], bb_basis[1][1],
+                trans[0][0], trans[0][1],
+                trans[1][0], trans[1][1]
+            );
+        }
+
+        bb_basis[0][0].into(basis[0][0]);
+        bb_basis[0][1].into(basis[0][1]);
+        bb_basis[1][0].into(basis[1][0]);
+        bb_basis[1][1].into(basis[1][1]);
+    }
+
+    perf_noinline
+    void fallback_reduce_lattice() {
         mpz_class &a = tmp[0];
         mpz_class &b = tmp[1];
 

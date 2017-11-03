@@ -43,6 +43,15 @@ static inline void mul(mpz_class &rop, mpz_class const &op2) {
     mpz_mul(rop.get_mpz_t(), rop.get_mpz_t(), op2.get_mpz_t());
 }
 
+static inline void mul_si(mpz_class &rop, mpz_class const &op1, long op2) {
+    mpz_mul_si(rop.get_mpz_t(), op1.get_mpz_t(), op2);
+}
+
+static inline void mul_si(mpz_class &rop, long op2) {
+    mpz_mul_si(rop.get_mpz_t(), rop.get_mpz_t(), op2);
+}
+
+
 static inline void mul_2exp(mpz_class &rop, mpz_class const &op1, mp_bitcnt_t op2) {
     mpz_mul_2exp(rop.get_mpz_t(), op1.get_mpz_t(), op2);
 }
@@ -209,6 +218,10 @@ static inline unsigned long gcd_ui(mpz_class &rop, unsigned long op2) {
 
 static inline unsigned long ui_gcd_ui(mpz_class &rop, unsigned long op2) {
     return mpz_gcd_ui(nullptr, rop.get_mpz_t(), op2);
+}
+
+static inline mp_limb_t getlimbn(mpz_class const &op, mp_size_t n) {
+    return mpz_getlimbn(op.get_mpz_t(), n);
 }
 
 
